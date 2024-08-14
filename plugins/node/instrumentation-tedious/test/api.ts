@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
+// XXX: compilation with new version is failing because `tedious` is making use
+// of the type modification in named imports. Relased in tsc@4.5
+// Ref: https://devblogs.microsoft.com/typescript/announcing-typescript-4-5-rc/#type-on-import-names
+
+
 import * as assert from 'assert';
 import { promisify } from 'util';
-import type { Connection, Request, TYPES, ConnectionConfig } from 'tedious';
+import type { Connection, Request, TYPES, ConnectionConfiguration } from 'tedious';
 
 type Method = keyof Connection & ('execSql' | 'execSqlBatch' | 'prepare');
 export type tedious = {
   Connection: typeof Connection;
   Request: typeof Request;
   TYPES: typeof TYPES;
-  ConnectionConfig: ConnectionConfig;
+  ConnectionConfig: ConnectionConfiguration;
 };
 
 export const makeApi = (tedious: tedious) => {
@@ -32,7 +37,7 @@ export const makeApi = (tedious: tedious) => {
     return `[dbo].[${resource}]`;
   };
 
-  const createConnection = (config: ConnectionConfig): Promise<Connection> => {
+  const createConnection = (config: ConnectionConfiguration): Promise<Connection> => {
     return new Promise((resolve, reject) => {
       const connection = new tedious.Connection(config);
 
@@ -266,9 +271,9 @@ export const makeApi = (tedious: tedious) => {
         connection.execSql(request);
       });
     },
-    execute: (connection: Connection): Promise<number> => {
+    execute: (connection: Connection): Promise<number | undefined> => {
       return new Promise((resolve, reject) => {
-        const requestDoneCb = (err: any, rowCount: number) => {
+        const requestDoneCb = (err: any, rowCount: number | undefined) => {
           if (err) {
             return reject(err);
           }
@@ -294,10 +299,10 @@ export const makeApi = (tedious: tedious) => {
           // required in <=11.5. not supported in 14
           request.addRow({ c1: 1 });
           request.addRow({ c1: 2, c2: 'hello' });
-          return connection.execBulkLoad(request);
+          return (connection.execBulkLoad as any)(request);
         }
 
-        (connection.execBulkLoad as any)(request, [
+        connection.execBulkLoad(request, [
           { c1: 1 },
           { c1: 2, c2: 'hello' },
         ]);
