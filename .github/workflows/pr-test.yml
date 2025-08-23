@@ -203,7 +203,7 @@ jobs:
           retention-days: 1
           path: |
             !node_modules
-            **/.nyc_output/**
+            packages/*/.nyc_output/**
 
   browser-test:
     needs: compile
